@@ -1,0 +1,5 @@
+{
+  "name": "Deshavu",
+  "description": "An intelligent video library application that allows users to upload videos and use a chat interface powered by the Gemini API to search for specific videos or moments within them based on natural language queries.",
+  "requestFramePermissions": []
+}

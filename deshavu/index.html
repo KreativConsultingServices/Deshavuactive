@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deshavu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+    "dexie": "https://aistudiocdn.com/dexie@^4.0.7"
+  }
+}
+</script>
+<style>
+  .glass-container {
+    background: rgba(44, 45, 49, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 20px;
+    box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.4);
+  }
+  .glass-inset {
+    background: rgba(29, 31, 35, 0.5);
+    border-radius: 12px;
+    box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .upload-button {
+      width: 80px;
+      height: 80px;
+      border: none;
+      border-radius: 50%;
+      background: #5ECB6A;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease-out;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Inter', sans-serif;
+      position: relative;
+      box-shadow: 0 0 15px 1px rgba(94, 203, 106, 0.3);
+    }
+
+    .upload-button:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 20px 3px rgba(94, 203, 106, 0.4);
+    }
+
+    .upload-button:active {
+      transform: scale(0.96);
+    }
+    
+    @keyframes blink-animation {
+      50% { opacity: 0; }
+    }
+    .blinking-cursor {
+      animation: blink-animation 1.2s step-end infinite;
+    }
+</style>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-[#2C2D31]">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
