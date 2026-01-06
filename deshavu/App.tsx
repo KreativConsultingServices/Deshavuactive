@@ -170,6 +170,21 @@ const App: React.FC = () => {
     }
   }, [videos, selectedFaceIds]);
 
+  const uniquePersons = useMemo(() => {
+    const persons: Face[] = [];
+    const seenPersonIds = new Set<string>();
+
+    allFaces.forEach(face => {
+      const pId = face.personId || face.id;
+      if (!seenPersonIds.has(pId)) {
+        seenPersonIds.add(pId);
+        persons.push(face);
+      }
+    });
+
+    return persons;
+  }, [allFaces]);
+
   const displayedVideos = useMemo(() => {
     let filtered = videos;
 
@@ -198,9 +213,13 @@ const App: React.FC = () => {
   };
 
   const handleToggleFaceSelection = (faceId: string) => {
-    const newSelectedFaceIds = selectedFaceIds.includes(faceId)
-      ? selectedFaceIds.filter(id => id !== faceId)
-      : [...selectedFaceIds, faceId];
+    // Find the face to get its personId
+    const face = allFaces.find(f => f.id === faceId);
+    const idToSelect = face?.personId || faceId;
+
+    const newSelectedFaceIds = selectedFaceIds.includes(idToSelect)
+      ? selectedFaceIds.filter(id => id !== idToSelect)
+      : [...selectedFaceIds, idToSelect];
 
     setSelectedFaceIds(newSelectedFaceIds);
     setSearchActive(false);
@@ -208,8 +227,11 @@ const App: React.FC = () => {
   };
 
   const handleNameFace = async (faceId: string, name: string) => {
-    await db.updateFaceName(faceId, name);
-    setAllFaces(prev => prev.map(face => face.id === faceId ? { ...face, name: name } : face));
+    const face = allFaces.find(f => f.id === faceId);
+    const personId = face?.personId || faceId;
+
+    await db.updateFacesByPersonId(personId, name);
+    setAllFaces(prev => prev.map(f => (f.personId === personId || f.id === personId) ? { ...f, name: name } : f));
   };
 
   if (isAuthLoading) {
@@ -278,9 +300,9 @@ const App: React.FC = () => {
             onVideoSelect={handleVideoSelect}
           />
 
-          {allFaces.length > 0 &&
+          {uniquePersons.length > 0 &&
             <FaceGallery
-              faces={allFaces}
+              faces={uniquePersons}
               selectedFaceIds={selectedFaceIds}
               onToggleSelect={handleToggleFaceSelection}
               onNameFace={handleNameFace}

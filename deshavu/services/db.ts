@@ -12,10 +12,10 @@ export class DeshavuDB extends Dexie {
         // FIX: Explicitly cast `this` to `Dexie` to resolve a TypeScript error where the 
         // inherited `version` method was not being found on the subclass instance within the 
         // constructor. This can happen in certain build configurations.
-        (this as Dexie).version(2).stores({
-            users: '++id, &email', // Changed from username
+        (this as Dexie).version(3).stores({
+            users: '++id, &email',
             videos: 'id, userId',
-            faces: 'id, userId',
+            faces: 'id, userId, personId',
         });
     }
 }
@@ -55,4 +55,8 @@ export const getFacesForUser = (userId: number): Promise<Face[]> => {
 
 export const updateFaceName = (faceId: string, name: string): Promise<number> => {
     return db.faces.update(faceId, { name });
+}
+
+export const updateFacesByPersonId = async (personId: string, name: string): Promise<number> => {
+    return db.faces.where('personId').equals(personId).modify({ name });
 }
