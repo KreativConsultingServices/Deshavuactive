@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import type { Video, VideoSegment, OnScreenTextSegment } from '../types';
+import type { Video, VideoSegment, OnScreenTextSegment, Face } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable is not set");
@@ -8,13 +8,12 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const findMatchingVideos = async (query: string, videos: Video[]): Promise<string[]> => {
-    // This function remains the same as before
     if (videos.length === 0) {
         return [];
     }
 
     const model = 'gemini-2.5-flash';
-    
+
     const simplifiedVideos = videos.map(({ id, description }) => ({ id, description }));
 
     const systemInstruction = `You are an intelligent video library search assistant. Your task is to find videos that match the user's query from a provided list of videos.
@@ -50,7 +49,7 @@ export const findMatchingVideos = async (query: string, videos: Video[]): Promis
 
         const jsonString = response.text.trim();
         const matchingIds = JSON.parse(jsonString);
-        
+
         if (Array.isArray(matchingIds) && matchingIds.every(item => typeof item === 'string')) {
             return matchingIds;
         } else {
@@ -103,9 +102,9 @@ const extractVideoDetailsFunctionDeclaration: FunctionDeclaration = {
     parameters: {
         type: Type.OBJECT,
         properties: {
-            description: { 
-                type: Type.STRING, 
-                description: 'A detailed, searchable summary of the video content, including actions, objects, and environment.' 
+            description: {
+                type: Type.STRING,
+                description: 'A detailed, searchable summary of the video content, including actions, objects, and environment.'
             },
             faces: {
                 type: Type.ARRAY,
@@ -113,13 +112,13 @@ const extractVideoDetailsFunctionDeclaration: FunctionDeclaration = {
                 items: {
                     type: Type.OBJECT,
                     properties: {
-                        frameIndex: { 
-                            type: Type.INTEGER, 
+                        frameIndex: {
+                            type: Type.INTEGER,
                             description: 'The index of the frame (from the provided array) where this face is most clearly visible.'
                         },
-                        description: { 
-                            type: Type.STRING, 
-                            description: 'A brief, objective description of the face (e.g., "person with glasses and a beard").' 
+                        description: {
+                            type: Type.STRING,
+                            description: 'A brief, objective description of the face (e.g., "person with glasses and a beard").'
                         },
                         box: {
                             type: Type.OBJECT,
@@ -183,7 +182,7 @@ const extractVideoDetailsFunctionDeclaration: FunctionDeclaration = {
 
 
 const cropFace = (
-    base64Frame: string, 
+    base64Frame: string,
     box: { y_min: number, x_min: number, y_max: number, x_max: number }
 ): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -222,7 +221,7 @@ export interface VideoAnalysisResult {
 
 export const analyzeVideoContent = async (base64Frames: string[], videoDuration: number): Promise<VideoAnalysisResult> => {
     const model = 'gemini-2.5-flash';
-    
+
     const imageParts = base64Frames.map(frame => ({
         inlineData: {
             mimeType: 'image/jpeg',
@@ -240,7 +239,7 @@ export const analyzeVideoContent = async (base64Frames: string[], videoDuration:
 - For each unique person you identify, find the frame where their face is clearest. Ensure the face is well-lit and not heavily obstructed.
 - ONLY return high-quality face detections. The face must be clearly identifiable as a human face. Reject blurry images, partial views, or non-face objects.
 - Provide objective, factual descriptions. Do not invent names.`;
-        
+
     const contents = {
         parts: [
             ...imageParts,
@@ -257,12 +256,12 @@ export const analyzeVideoContent = async (base64Frames: string[], videoDuration:
                 tools: [{ functionDeclarations: [extractVideoDetailsFunctionDeclaration] }],
             }
         });
-        
+
         const functionCall = response.functionCalls?.[0];
         if (!functionCall || functionCall.name !== 'extractVideoDetails') {
             throw new Error("AI did not return the expected analysis data.");
         }
-        
+
         const { description, faces, segments, transcript, onScreenText } = functionCall.args;
 
         if (!description || !Array.isArray(faces) || !Array.isArray(segments) || typeof transcript === 'undefined' || !Array.isArray(onScreenText)) {
@@ -284,7 +283,7 @@ export const analyzeVideoContent = async (base64Frames: string[], videoDuration:
         return {
             description: description,
             faces: faceCrops.filter(Boolean) as { description: string; image: string; }[],
-            segments: segments || [],
+            segments: (segments || []).map((s: any) => ({ ...s, timestamp: Number(s.timestamp) })),
             transcript: transcript || '',
             onScreenText: onScreenText || [],
         };
@@ -292,5 +291,46 @@ export const analyzeVideoContent = async (base64Frames: string[], videoDuration:
     } catch (error) {
         console.error("Error analyzing video with Gemini API:", error);
         throw new Error("Failed to analyze video content with face detection.");
+    }
+};
+
+export const matchFacesAgainstExisting = async (newFaces: { image: string, description: string }[], existingFaces: Face[]): Promise<{ [key: number]: string }> => {
+    if (newFaces.length === 0 || existingFaces.length === 0) return {};
+
+    const model = 'gemini-2.0-flash';
+    const uniqueExisting = existingFaces.filter((v, i, a) => a.findIndex(t => t.personId === v.personId || t.name === v.name) === i).slice(0, 20);
+
+    const systemInstruction = `You are a facial recognition assistant. You will be provided with target faces and a list of known faces. Your task is to determine if the target face matches any of the known faces.
+    Respond ONLY with a JSON object where the key is the index of the target face and the value is the 'id' (or personId) of the matching known face.
+    Example: {"0": "face-1", "2": "face-5"}
+    Provide no explanation or other text.`;
+
+    const contents = [
+        { text: "Existing known faces:" },
+        ...uniqueExisting.map((face) => ({
+            inlineData: { mimeType: 'image/jpeg', data: face.image },
+            text: `Known ID: ${face.personId || face.id} (Name: ${face.name || 'Unknown'})`
+        })),
+        { text: "New target faces to check:" },
+        ...newFaces.map((face, idx) => ({
+            inlineData: { mimeType: 'image/jpeg', data: face.image },
+            text: `Target Index: ${idx}`
+        }))
+    ];
+
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: { parts: contents as any },
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+            }
+        });
+
+        return JSON.parse(response.text.trim());
+    } catch (error) {
+        console.error("Error matching faces:", error);
+        return {};
     }
 };

@@ -9,10 +9,12 @@ export interface Face {
   name: string | null;
   image: string; // base64 encoded image of the face
   description: string; // AI-generated description
+  personId?: string; // To group multiple detections of the same person
 }
 
 export interface VideoSegment {
   timestamp: number;
+  endTime?: number;
   description: string;
 }
 
